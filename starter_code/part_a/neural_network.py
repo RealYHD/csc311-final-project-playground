@@ -70,7 +70,9 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = inputs
+        encoder = torch.sigmoid(self.g(inputs))
+        decoder = torch.sigmoid(self.h(encoder))
+        out = decoder
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
@@ -96,7 +98,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     model.train()
 
     # Define optimizers and loss function.
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+    optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     num_student = train_data.shape[0]
 
     for epoch in range(0, num_epoch):
@@ -154,7 +156,7 @@ def evaluate(model, train_data, valid_data):
 
 
 def main():
-    zero_train_matrix, train_matrix, valid_data, test_data = load_data()
+    zero_train_matrix, train_matrix, valid_data, test_data = load_data("data")
 
     #####################################################################
     # TODO:                                                             #
@@ -162,16 +164,64 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    k = None
+    ks = [5, 50, 100, 200, 500]
     model = None
 
-    # Set optimization hyperparameters.
-    lr = None
-    num_epoch = None
-    lamb = None
 
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
-          valid_data, num_epoch)
+    # Set optimization hyperparameters.
+    lr = 0.05
+    num_epoch = 80
+    lamb = 0.0005
+
+    u, q = train_matrix.shape
+    print("Starting k optimization with constant alpha ({}), num of epochs ({}), and lambda ({}).".format(lr, num_epoch, lamb))
+    k_star = 0
+    acc_star = 0
+    for k in ks:
+        model = AutoEncoder(q, k)
+        train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
+        acc = evaluate(model, zero_train_matrix, valid_data)
+        print("\tAccuracy: {}".format(acc))
+        if acc > acc_star:
+            acc_star = acc
+            k_star = k
+            print("\tk: {}*".format(k))
+        else:
+            print("\tk: {}".format(k))
+    print("Concluding k testing. Best accuracy was {} with a k* of {}.".format(acc_star, k_star))
+
+    # Harrison's semi-auto meta-optimizer
+    print("Starting learning rate, number of epochs, and lambda optimizations with constant k* of {}".format(k_star))
+    lrs = [0.001, 0.01, 0.05, 1]
+    num_epochs = [160, 80, 40, 20]
+    lambs = [0, 0.0001, 0.00025, 0.0005]
+
+    acc_star = 0
+    lr_star = 0
+    num_epoch_star = 0
+    lamb_star = 0
+    for lr in lrs:
+        for num_epoch in num_epochs:
+            for lamb in lambs:
+                model = AutoEncoder(q, k_star)
+                print("\tlearning rate: {}, number of epochs: {}, lambda: {}".format(lr, num_epoch, lamb))
+                train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
+                acc = evaluate(model, train_matrix, valid_data)
+                if acc > acc_star:
+                    print("\t\tAccuracy: {}*".format(acc))
+                    acc_star = acc
+                    lr_star = lr
+                    num_epoch_star = num_epoch
+                    lamb_star = lamb
+                else:
+                    print("\t\tAccuracy: {}".format(acc))
+    print("Concluding learning rate, number of epoch and lambda optimizations.")
+    print("Results:")
+    print("Learning rate*: {}".format(lr_star))
+    print("Number of epochs*: {}".format(num_epoch_star))
+    print("Lambda*: {}".format(lamb_star))
+
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
