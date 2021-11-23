@@ -37,7 +37,9 @@ def knn_impute_by_item(matrix, valid_data, k):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    acc = None
+    nbrs = KNNImputer(n_neighbors=k)
+    mat = nbrs.fit_transform(matrix.T)
+    acc = sparse_matrix_evaluate(valid_data, mat.T)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -45,9 +47,9 @@ def knn_impute_by_item(matrix, valid_data, k):
 
 
 def main():
-    sparse_matrix = load_train_sparse("../data").toarray()
-    val_data = load_valid_csv("../data")
-    test_data = load_public_test_csv("../data")
+    sparse_matrix = load_train_sparse("data").toarray()
+    val_data = load_valid_csv("data")
+    test_data = load_public_test_csv("data")
 
     print("Sparse matrix:")
     print(sparse_matrix)
@@ -60,7 +62,34 @@ def main():
     # the best performance and report the test accuracy with the        #
     # chosen k*.                                                        #
     #####################################################################
-    pass
+    ks = [1, 6, 11, 16, 21, 26]
+    k_star = 0
+    acc_star = 0
+
+    # For user-based
+    print("Beginning k* optimization for user-based kNN impute.")
+    for k in ks:
+        print("\tkNN imputing with k: {}.".format(k))
+        acc = knn_impute_by_user(sparse_matrix, val_data, k)
+        if acc > acc_star:
+            acc_star = acc
+            k_star = k
+            print("\tAccuracy*: {}".format(acc_star))
+        print("\tAccuracy: {}".format(acc))
+    print("Concluding k* optimization. Optimal k* is {} with an accuracy of {}".format(k_star, acc_star))
+
+    # For item-based
+    print("Beginning k* optimization for item-based kNN impute.")
+    for k in ks:
+        print("\tkNN imputing with k: {}.".format(k))
+        acc = knn_impute_by_item(sparse_matrix, val_data, k)
+        if acc > acc_star:
+            acc_star = acc
+            k_star = k
+            print("\tAccuracy*: {}".format(acc_star))
+        print("\tAccuracy: {}".format(acc))
+    print("Concluding k* optimization. Optimal k* is {} with an accuracy of {}".format(k_star, acc_star))
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
