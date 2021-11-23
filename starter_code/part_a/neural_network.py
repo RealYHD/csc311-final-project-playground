@@ -79,7 +79,7 @@ class AutoEncoder(nn.Module):
         return out
 
 
-def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
+def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, verbose = True):
     """ Train the neural network, where the objective also includes
     a regularizer.
 
@@ -122,8 +122,8 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             optimizer.step()
 
         valid_acc = evaluate(model, zero_train_data, valid_data)
-        print("Epoch: {} \tTraining Cost: {:.6f}\t "
-              "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+        if verbose:
+            print("\tEpoch: {}/{} Training Cost: {:.6f} Valid Acc: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -165,61 +165,44 @@ def main():
     #####################################################################
     # Set model hyperparameters.
     ks = [5, 50, 100, 200, 500]
-    model = None
-
-
-    # Set optimization hyperparameters.
-    lr = 0.05
-    num_epoch = 80
-    lamb = 0.0005
-
-    u, q = train_matrix.shape
-    print("Starting k optimization with constant alpha ({}), num of epochs ({}), and lambda ({}).".format(lr, num_epoch, lamb))
-    k_star = 0
-    acc_star = 0
-    for k in ks:
-        model = AutoEncoder(q, k)
-        train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
-        acc = evaluate(model, zero_train_matrix, valid_data)
-        print("\tAccuracy: {}".format(acc))
-        if acc > acc_star:
-            acc_star = acc
-            k_star = k
-            print("\tk: {}*".format(k))
-        else:
-            print("\tk: {}".format(k))
-    print("Concluding k testing. Best accuracy was {} with a k* of {}.".format(acc_star, k_star))
-
-    # Harrison's semi-auto meta-optimizer
-    print("Starting learning rate, number of epochs, and lambda optimizations with constant k* of {}".format(k_star))
     lrs = [0.001, 0.01, 0.05, 1]
     num_epochs = [160, 80, 40, 20]
     lambs = [0, 0.0001, 0.00025, 0.0005]
+    model = None
 
-    acc_star = 0
-    lr_star = 0
-    num_epoch_star = 0
-    lamb_star = 0
-    for lr in lrs:
-        for num_epoch in num_epochs:
-            for lamb in lambs:
-                model = AutoEncoder(q, k_star)
-                print("\tlearning rate: {}, number of epochs: {}, lambda: {}".format(lr, num_epoch, lamb))
-                train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
-                acc = evaluate(model, train_matrix, valid_data)
-                if acc > acc_star:
-                    print("\t\tAccuracy: {}*".format(acc))
-                    acc_star = acc
-                    lr_star = lr
-                    num_epoch_star = num_epoch
-                    lamb_star = lamb
-                else:
-                    print("\t\tAccuracy: {}".format(acc))
-    print("Concluding learning rate, number of epoch and lambda optimizations.")
-    print("Results:")
-    print("Learning rate*: {}".format(lr_star))
-    print("Number of epochs*: {}".format(num_epoch_star))
-    print("Lambda*: {}".format(lamb_star))
+    u, q = train_matrix.shape
+    for k in ks:
+        # Harrison's semi-auto meta-optimizer
+        print("Starting k, learning rate, number of epochs, and lambda optimizations.")
+
+        acc_star = 0
+        k_star = 0
+        lr_star = 0
+        num_epoch_star = 0
+        lamb_star = 0
+        for lr in lrs:
+            for num_epoch in num_epochs:
+                for lamb in lambs:
+                    print("Starting training with following parameters:")
+                    print("\tk: {}, learning rate: {}, number of epochs: {}, lambda: {}".format(k, lr, num_epoch, lamb))
+                    model = AutoEncoder(q, k)
+                    train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
+                    acc = evaluate(model, zero_train_matrix, valid_data)
+                    if acc > acc_star:
+                        print("\tFinal accuracy: {}*".format(acc))
+                        acc_star = acc
+                        k_star = k
+                        lr_star = lr
+                        num_epoch_star = num_epoch
+                        lamb_star = lamb
+                    else:
+                        print("\tFinal accuracy: {}".format(acc))
+        print("Concluding learning rate, number of epoch and lambda optimizations.")
+        print("Results:")
+        print("\tk*: {}".format(k_star))
+        print("\tLearning rate*: {}".format(lr_star))
+        print("\tNumber of epochs*: {}".format(num_epoch_star))
+        print("\tLambda*: {}".format(lamb_star))
 
 
     #####################################################################
