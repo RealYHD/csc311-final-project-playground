@@ -101,6 +101,8 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, v
     optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     num_student = train_data.shape[0]
 
+    if verbose:
+        print("\tEpoch\tTrain. cost\tValid. acc.")
     for epoch in range(0, num_epoch):
         train_loss = 0.
 
@@ -123,7 +125,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, v
 
         valid_acc = evaluate(model, zero_train_data, valid_data)
         if verbose:
-            print("\tEpoch: {}/{} Training Cost: {:.6f} Valid Acc: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
+            print("\t{}/{}\t{:.6f}\t{}".format((epoch + 1), num_epoch, train_loss, valid_acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -172,7 +174,6 @@ def main():
 
     u, q = train_matrix.shape
     for k in ks:
-        # Harrison's semi-auto meta-optimizer
         print("Starting k, learning rate, number of epochs, and lambda optimizations.")
 
         acc_star = 0
@@ -183,26 +184,28 @@ def main():
         for lr in lrs:
             for num_epoch in num_epochs:
                 for lamb in lambs:
-                    print("Starting training with following parameters:")
-                    print("\tk: {}, learning rate: {}, number of epochs: {}, lambda: {}".format(k, lr, num_epoch, lamb))
+                    print("\tk\tLearn. Rate\t# of Epochs\tLambda")
+                    print("\t{}\t{}\t{}\t{}".format(k, lr, num_epoch, lamb))
                     model = AutoEncoder(q, k)
                     train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
                     acc = evaluate(model, zero_train_matrix, valid_data)
                     if acc > acc_star:
-                        print("\tFinal accuracy: {}*".format(acc))
+                        print("\tFinal accuracy*\t{}".format(acc))
                         acc_star = acc
                         k_star = k
                         lr_star = lr
                         num_epoch_star = num_epoch
                         lamb_star = lamb
                     else:
-                        print("\tFinal accuracy: {}".format(acc))
+                        print("\tFinal accuracy\t{}".format(acc))
         print("Concluding learning rate, number of epoch and lambda optimizations.")
         print("Results:")
-        print("\tk*: {}".format(k_star))
-        print("\tLearning rate*: {}".format(lr_star))
-        print("\tNumber of epochs*: {}".format(num_epoch_star))
-        print("\tLambda*: {}".format(lamb_star))
+        print("\tFinal acc.:\t{}".format(acc_star))
+        print("\tk*:\t{}".format(k_star))
+        print("\tLearning rate*:\t{}".format(lr_star))
+        print("\tNumber of epochs*:\t{}".format(num_epoch_star))
+        print("\tLambda*:\t{}".format(lamb_star))
+        print()
 
 
     #####################################################################
