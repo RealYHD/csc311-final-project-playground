@@ -1,3 +1,5 @@
+import sys
+
 from utils import *
 from torch.autograd import Variable
 
@@ -125,7 +127,11 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, v
 
         valid_acc = evaluate(model, zero_train_data, valid_data)
         if verbose:
-            print("\t{}/{}\t{:.6f}\t{}".format((epoch + 1), num_epoch, train_loss, valid_acc))
+            print("{}/{}\t{:.6f}\t{}".format((epoch + 1), num_epoch, train_loss, valid_acc))
+        else:
+            sys.stdout.write("\rEpoch: {}/{}, Loss: {:.6f}, Valid acc.: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
+    if not verbose:
+        print()
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -167,20 +173,20 @@ def main():
     #####################################################################
     # Set model hyperparameters.
     ks = [5, 50, 100, 200, 500]
-    lrs = [0.001, 0.01, 0.05, 1]
+    lrs = [0.001, 0.05, 0.075]
     num_epochs = [160, 80, 40, 20]
     lambs = [0, 0.0001, 0.00025, 0.0005]
     model = None
 
     u, q = train_matrix.shape
+    acc_star = 0
+    k_star = 0
+    lr_star = 0
+    num_epoch_star = 0
+    lamb_star = 0
     for k in ks:
         print("Starting k, learning rate, number of epochs, and lambda optimizations.")
 
-        acc_star = 0
-        k_star = 0
-        lr_star = 0
-        num_epoch_star = 0
-        lamb_star = 0
         for lr in lrs:
             for num_epoch in num_epochs:
                 for lamb in lambs:

@@ -8,9 +8,17 @@
             "name": "Python: NN",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/starter_code/part_a/neural_network.py",
+            "program": "${workspaceFolder}/part_a/neural_network.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/starter_code/"
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: NN-hypervalidator",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/part_a/hypervalidator.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
