@@ -19,7 +19,8 @@ def min_delta_tuning(init_hyperparameters, min_iteration_delta = 0.01, min_consi
     }
 
     curr_hyperparameter_vec = np.array(list(curr_hyperparameters.values()))
-    growth_vec = np.full(4, 2)
+    default_growth_vec = np.full(4, 2)
+    growth_vec = np.copy(default_growth_vec)
     accel_vec = np.full(4, 2)
     dir_vec = np.full(4, init_dir)
 
@@ -30,16 +31,6 @@ def min_delta_tuning(init_hyperparameters, min_iteration_delta = 0.01, min_consi
     acc = 0
     iterations = 0
     while max_iterations == 0 or iterations < max_iterations:
-        if verbosity > 0:
-            print("#\tk\tlr\tlambda\tepochs")
-            print("{}\t{}\t{}\t{}\t{}".format(
-                iterations, 
-                curr_hyperparameter_vec[0],
-                curr_hyperparameter_vec[1],
-                curr_hyperparameter_vec[2],
-                curr_hyperparameter_vec[3]
-            ))
-
         curr_hyperparameters = {
             "k": curr_hyperparameter_vec[0],
             "lr": curr_hyperparameter_vec[1],
@@ -51,82 +42,42 @@ def min_delta_tuning(init_hyperparameters, min_iteration_delta = 0.01, min_consi
         # TODO: Deal with stdout
         u, q = train_matrix.shape
 
-        # Adjust k
-        vec_i = 0
-        if iterations > 0:
-            curr_hyperparameter_vec = curr_hyperparameter_vec * (growth_vec ** (dir_vec * param_mask))
-            curr_hyperparameter_vec[vec_i] = max(curr_hyperparameter_vec[vec_i], 1)
-        model = AutoEncoder(q, int(curr_hyperparameter_vec[0]))
-        last_acc = acc
-        train(model, curr_hyperparameter_vec[1], curr_hyperparameter_vec[2], train_matrix, zero_train_matrix, valid_data, int(curr_hyperparameter_vec[3]), verbosity > 1)
-        acc = evaluate(model, zero_train_matrix, valid_data)
-        param_mask = np.zeros(4)
-        param_mask[vec_i] = 1
-        if iterations > 0:
-            acc_delta = acc - last_acc
-            if acc_delta > 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * dir_vec))
-                dir_vec[vec_i] = 1
-            elif acc_delta < 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * -dir_vec))
-                dir_vec[vec_i] = -1
+        for vec_i in range(len(curr_hyperparameter_vec)):
+            param_mask = np.zeros(4)
+            param_mask[vec_i] = 1
 
-        # Adjust lr
-        vec_i = 1
-        if iterations > 0:
-            curr_hyperparameter_vec = curr_hyperparameter_vec * (growth_vec ** (dir_vec * param_mask))
-        model = AutoEncoder(q, int(curr_hyperparameter_vec[0]))
-        last_acc = acc
-        train(model, curr_hyperparameter_vec[1], curr_hyperparameter_vec[2], train_matrix, zero_train_matrix, valid_data, int(curr_hyperparameter_vec[3]), verbosity > 1)
-        acc = evaluate(model, zero_train_matrix, valid_data)
-        param_mask = np.zeros(4)
-        param_mask[vec_i] = 1
-        if iterations > 0:
             acc_delta = acc - last_acc
-            if acc_delta > 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * dir_vec))
-                dir_vec[vec_i] = 1
-            elif acc_delta < 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * -dir_vec))
-                dir_vec[vec_i] = -1
-
-        # Adjust lambda
-        vec_i = 2
-        if iterations > 0:
-            curr_hyperparameter_vec = curr_hyperparameter_vec * (growth_vec ** (dir_vec * param_mask))
-        model = AutoEncoder(q, int(curr_hyperparameter_vec[0]))
-        last_acc = acc
-        train(model, curr_hyperparameter_vec[1], curr_hyperparameter_vec[2], train_matrix, zero_train_matrix, valid_data, int(curr_hyperparameter_vec[3]), verbosity > 1)
-        acc = evaluate(model, zero_train_matrix, valid_data)
-        param_mask = np.zeros(4)
-        param_mask[vec_i] = 1
-        if iterations > 0:
-            acc_delta = acc - last_acc
-            if acc_delta > 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * dir_vec))
-                dir_vec[vec_i] = 1
-            elif acc_delta < 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * -dir_vec))
-                dir_vec[vec_i] = -1
-
-        # Adjust epoch
-        vec_i = 3
-        if iterations > 0:
-            curr_hyperparameter_vec = curr_hyperparameter_vec * (growth_vec ** (dir_vec * param_mask))
-        model = AutoEncoder(q, int(curr_hyperparameter_vec[0]))
-        last_acc = acc
-        train(model, curr_hyperparameter_vec[1], curr_hyperparameter_vec[2], train_matrix, zero_train_matrix, valid_data, int(curr_hyperparameter_vec[3]), verbosity > 1)
-        acc = evaluate(model, zero_train_matrix, valid_data)
-        param_mask = np.zeros(4)
-        param_mask[vec_i] = 1
-        if iterations > 0:
-            acc_delta = acc - last_acc
-            if acc_delta > 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * dir_vec))
-                dir_vec[vec_i] = 1
-            elif acc_delta < 0:
-                growth_vec = growth_vec * (accel_vec ** (param_mask * -dir_vec))
-                dir_vec[vec_i] = -1
+            if iterations > 0:
+                curr_hyperparameter_vec = curr_hyperparameter_vec * (growth_vec ** (dir_vec * param_mask))
+                if vec_i == 0:
+                    curr_hyperparameter_vec[vec_i] = max(curr_hyperparameter_vec[vec_i], 1)
+            if verbosity > 0:
+                print("#\tp\tk\tlr\tlambda\tepochs")
+                print("{}\t{}\t{}\t{}\t{}\t{}".format(
+                    iterations,
+                    vec_i, 
+                    curr_hyperparameter_vec[0],
+                    curr_hyperparameter_vec[1],
+                    curr_hyperparameter_vec[2],
+                    curr_hyperparameter_vec[3]
+                ))
+            model = AutoEncoder(q, int(curr_hyperparameter_vec[0]))
+            last_acc = acc
+            train(model, curr_hyperparameter_vec[1], curr_hyperparameter_vec[2], train_matrix, zero_train_matrix, valid_data, int(curr_hyperparameter_vec[3]), verbosity > 1)
+            acc = evaluate(model, zero_train_matrix, valid_data)
+            if iterations > 0:
+                acc_delta = acc - last_acc
+                if acc_delta > 0:
+                    growth_vec = growth_vec * (accel_vec ** (param_mask * dir_vec))
+                elif acc_delta < 0:
+                    dir_vec[vec_i] = -1 * dir_vec[vec_i]
+                    # Essentially, undo the previous move.
+                    curr_hyperparameter_vec = curr_hyperparameter_vec * (growth_vec ** (dir_vec * param_mask))
+                    if vec_i == 0:
+                        curr_hyperparameter_vec[vec_i] = max(curr_hyperparameter_vec[vec_i], 1)
+                    
+                    # Then, reset the growth rate.
+                    growth_vec = np.copy(default_growth_vec)
 
 
         # Calculate iteration gains
@@ -142,7 +93,7 @@ def min_delta_tuning(init_hyperparameters, min_iteration_delta = 0.01, min_consi
                 print("{} of {} consecutive minimum changes for conclusion.".format(consecutive_min_hit, min_consistency))
             if consecutive_min_hit >= min_consistency:                    
                 if verbosity > 0:
-                    print("Accuracy delta {} was below set threshold of {}. Concluding tuning.".format(iteration_acc_delta, min_iteration_delta))
+                    print("Accuracy delta {} was below set threshold of {}. Concluding tuning. Results as follows:".format(iteration_acc_delta, min_iteration_delta))
                     print("#\tk\tlr\tlambda\tepochs")
                     print("{}\t{}\t{}\t{}\t{}".format(
                         iterations, 
@@ -161,10 +112,10 @@ def min_delta_tuning(init_hyperparameters, min_iteration_delta = 0.01, min_consi
 def main():
     # k: 5, learning rate: 0.05, number of epochs: 40, lambda: 0.00025 from rough permutation
     min_delta_tuning({
-        "k": 5,
-        "lr": 0.05,
-        "lambda": 0.00025,
-        "epochs": 20
+        "k": 1,
+        "lr": 0.005,
+        "lambda": 0.001,
+        "epochs": 10
     })
 
 if __name__ == "__main__":
