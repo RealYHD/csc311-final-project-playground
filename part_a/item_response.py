@@ -30,13 +30,54 @@ def neg_log_likelihood(sparse_matrix, theta, beta):
     theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
     beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
 
-    log_lklihood = theta_mat - beta_mat - np.log(1 + np.exp(theta_mat - beta_mat))
+    log_lklihood = zero_sparse_matrix * (theta_mat - beta_mat - np.logaddexp(0, theta_mat - beta_mat))\
+        - (1-zero_sparse_matrix) * (np.logaddexp(0, theta_mat - beta_mat))
     log_lklihood = np.sum(log_lklihood) # Only include positives, and sum instead of multiply (log)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
     return -log_lklihood
 
+
+def update_theta_beta_vec(sparse_matrix, lr, theta, beta):
+    """ Update theta and beta using gradient descent.
+
+    You are using alternating gradient descent. Your update should look:
+    for i in iterations ...
+        theta <- new_theta
+        beta <- new_beta
+
+    You may optionally replace the function arguments to receive a matrix.
+
+    :param data: A dictionary {user_id: list, question_id: list,
+    is_correct: list}
+    :param lr: float
+    :param theta: Vector
+    :param beta: Vector
+    :return: tuple of vectors
+    """
+    #####################################################################
+    # TODO:                                                             #
+    # Implement the function as described in the docstring.             #
+    #####################################################################
+    num_users, num_questions = np.shape(sparse_matrix)
+
+    c_mat = sparse_matrix.toarray()
+    c_mat[np.isnan(c_mat)] = 0
+
+    theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
+    beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
+
+    theta_grad = np.sum(c_mat - sigmoid(theta_mat - beta_mat), 1)
+    theta = theta - (lr * theta_grad)
+
+    beta_grad = np.sum(-c_mat + sigmoid(theta_mat - beta_mat), 0)
+    beta = beta - (lr * beta_grad)
+
+    #####################################################################
+    #                       END OF YOUR CODE                            #
+    #####################################################################
+    return theta, beta
 
 def update_theta_beta(sparse_matrix, lr, theta, beta):
     """ Update theta and beta using gradient descent.
@@ -64,14 +105,11 @@ def update_theta_beta(sparse_matrix, lr, theta, beta):
     zero_sparse_matrix = sparse_matrix.toarray()
     zero_sparse_matrix[np.isnan(zero_sparse_matrix)] = 0
 
-    theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
-    beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
-
-    theta_grad = np.sum(- 1 + beta_mat - sigmoid(theta_mat - beta_mat), 1)
-    theta = theta - (lr * theta_grad)
-
-    beta_grad = np.sum(- sigmoid(theta_mat - beta_mat) + 1 - theta_mat, 0)
-    beta = beta - (lr * beta_grad)
+    for i in range(len(theta)):
+        theta[i] = theta[i] - lr * np.sum(- (1 - sigmoid(theta[i] - beta)))
+    
+    for i in range(len(beta)):
+        beta[i] = beta[i] - lr * np.sum(- (theta - beta[i]))
 
     #####################################################################
     #                       END OF YOUR CODE                            #
@@ -79,7 +117,7 @@ def update_theta_beta(sparse_matrix, lr, theta, beta):
     return theta, beta
 
 
-def irt(sparse_matrix, val_data, lr, iterations):
+def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta_vec):
     """ Train IRT model.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -95,8 +133,8 @@ def irt(sparse_matrix, val_data, lr, iterations):
     # TODO: Initialize theta and beta.
     num_users, num_questions = np.shape(sparse_matrix)
     rng = np.random.default_rng()
-    theta = np.asarray(rng.uniform(0.01, 5, num_users)) # Size is of number of users based on ID.
-    beta = np.asarray(rng.uniform(0.01, 5, num_questions)) # Size is of number of questions based on question ID.
+    theta = np.asarray(rng.uniform(0.001, 1, num_users)) # Size is of number of users based on ID.
+    beta = np.asarray(rng.uniform(0.001, 1, num_questions)) # Size is of number of questions based on question ID.
 
     val_acc_lst = []
 
@@ -105,7 +143,7 @@ def irt(sparse_matrix, val_data, lr, iterations):
         score = evaluate(data=val_data, theta=theta, beta=beta)
         val_acc_lst.append(score)
         print("NLLK: {} \t Score: {}".format(neg_lld, score))
-        theta, beta = update_theta_beta(sparse_matrix, lr, theta, beta)
+        theta, beta = step_func(sparse_matrix, lr, theta, beta)
 
     # TODO: You may change the return values to achieve what you want.
     return theta, beta, val_acc_lst
