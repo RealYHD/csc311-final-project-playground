@@ -1,11 +1,12 @@
 import numpy as np
 from scipy import sparse
 from sklearn.impute import KNNImputer
+import torch
 import item_response as irt
 from torch.autograd import Variable
 import utils
 import neural_network as nn
-import torch
+import scipy.sparse
 
 def predict_irt(u_id, q_id, theta, beta):
     """ Makes a prediction of whether or not u_id will answer
@@ -15,7 +16,7 @@ def predict_irt(u_id, q_id, theta, beta):
 
 def predict_knn_by_user(u_id, q_id, matrix, k):
     nbrs = KNNImputer(n_neighbors=k)
-    mat = nbrs.fit_transform(matrix)
+    mat = nbrs.fit_transform(matrix.toarray())
     return mat[u_id, q_id]
 
 def predict_nn(u_id, q_id, zero_data_matrix, model):
@@ -38,22 +39,21 @@ def prune_users(keep_users, data_set):
             del data_set["is_correct"][check_ind]
 
 def sample_sparse_matrix(n, sparse_matrix, gaurantee_users = True):
-    coords = np.where(not np.isnan(sparse_matrix))
-    np.random.choice(coords, n)
-    selection_mask = np.zeros(np.shape(sparse_matrix))
-    selection_mask[coords] = 1
+    coords = np.argwhere(sparse_matrix.toarray() >= 0)
+    selected = np.asarray(coords[np.random.choice(coords.shape[0], n)])
+    res_mat = np.empty(np.shape(sparse_matrix))
+    res_mat[:] = np.nan
+    np.put(res_mat, selected, 1)
 
     if gaurantee_users:
-        gaurantee_mask = np.zeros(np.shape(sparse_matrix))
-        for u_id in np.shape(sparse_matrix)[0]:
+        gauranteed_coords = []
+        for u_id in range(np.shape(sparse_matrix)[0]):
             user_row = sparse_matrix[u_id]
-            q_id = np.random.choice(np.argwhere(~np.isnan(user_row)))
-            gaurantee_mask[u_id, q_id] = 1
-        selection_mask = gaurantee_mask + selection_mask
-        selection_mask[selection_mask > 1] = 1
-    selection_mask[selection_mask == 0] = np.nan
+            q_id = np.random.choice(np.argwhere(user_row.toarray() >= 0)[:, 1])
+            gauranteed_coords.append([u_id, q_id])
+        np.put(res_mat, np.asarray(gauranteed_coords), 1)
 
-    return np.multiply(sparse_matrix, selection_mask)
+    return sparse.csr_matrix(res_mat) # No reason other than to maintain standard.
 
 def matrix_to_dict(sparse_matrix):
     sampled_data = {
@@ -72,24 +72,27 @@ def matrix_to_dict(sparse_matrix):
     return sampled_data
 
 def evaluate_ensemble(n = 200):
-    train_data = utils.load_train_csv("../data")
-    sparse_matrix = utils.load_train_sparse("../data")
-    zero_sparse_matrix = sparse_matrix.copy()
-    zero_sparse_matrix[np.isnan(sparse_matrix)] = 0
-    val_data = utils.load_valid_csv("../data")
-    test_data = utils.load_public_test_csv("../data")
+    train_data = utils.load_train_csv("data")
+    sparse_matrix = utils.load_train_sparse("data")
+    zero_sparse_matrix = sparse_matrix.toarray().copy()
+    zero_sparse_matrix[np.isnan(zero_sparse_matrix)] = 0
+    val_data = utils.load_valid_csv("data")
+    test_data = utils.load_public_test_csv("data")
 
     num_users, num_questions = np.shape(sparse_matrix)
 
     # Train IRT
-    irt_model = irt.irt(matrix_to_dict(sample_sparse_matrix(n, sparse_matrix)), val_data, 0.01, 20)
+    irt_model = irt.irt(sample_sparse_matrix(n, sparse_matrix), val_data, 0.001, 20)
 
     # Train NN
     sub_sparse_matrix = sample_sparse_matrix(n, sparse_matrix, False)
-    sub_zero_matrix = sub_sparse_matrix.copy()
+    sub_zero_matrix = sub_sparse_matrix.toarray().copy()
     sub_zero_matrix[np.isnan(sub_zero_matrix)] = 0
     nn_model = nn.AutoEncoder(num_questions, 5)
-    nn.train(nn_model, 0.05, 0.00025, sub_sparse_matrix, sub_zero_matrix, 40, verbosity_mode=False)
+    nn.train(nn_model, 0.05, 0.00025, torch.FloatTensor(sub_sparse_matrix.toarray()), torch.FloatTensor(sub_zero_matrix), 40, val_data, verbosity_mode=1)
+
+    # Get matrix for kNN
+    knn_sub_sparse_mat = sample_sparse_matrix(n, sparse_matrix)
 
     correct_pred = 0
     total = 0
@@ -101,10 +104,10 @@ def evaluate_ensemble(n = 200):
         irt_prediction = predict_irt(u_id, q_id, irt_model[0], irt_model[1])
 
         # Eval NN
-        nn_prediction = predict_nn(u_id, q_id, zero_sparse_matrix, nn_model)
+        nn_prediction = predict_nn(u_id, q_id, torch.FloatTensor(zero_sparse_matrix), nn_model)
 
         # Eval kNN
-        knn_prediction = predict_knn_by_user(u_id, q_id, sparse_matrix, 11) # TODO: By item may have slightly higher accuracy.
+        knn_prediction = predict_knn_by_user(u_id, q_id, knn_sub_sparse_mat, 11) # TODO: By item may have slightly higher accuracy.
 
         ensemble_prediction = irt_prediction + nn_prediction + knn_prediction
         ensemble_prediction = ensemble_prediction / 3.0
@@ -113,3 +116,9 @@ def evaluate_ensemble(n = 200):
             correct_pred = correct_pred + 1
         total = 0
     print("Final acc: {}".format(correct_pred / total))
+
+def main():
+    evaluate_ensemble()
+
+if __name__ == "__main__":
+    main()
