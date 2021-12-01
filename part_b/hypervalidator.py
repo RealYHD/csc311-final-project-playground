@@ -76,8 +76,7 @@ def min_delta_tuning(init_hyperparameters, min_iteration_delta = 0.01, min_consi
                     if vec_i == 0:
                         curr_hyperparameter_vec[vec_i] = max(curr_hyperparameter_vec[vec_i], 1)
                     
-                    # Then, reset the growth rate.
-                    growth_vec = np.copy(default_growth_vec)
+                    growth_vec = growth_vec * (accel_vec ** -1)
 
 
         # Calculate iteration gains

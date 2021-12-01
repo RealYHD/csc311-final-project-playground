@@ -9,7 +9,7 @@ def sigmoid(x):
     return np.exp(x) / (1 + np.exp(x))
 
 
-def neg_log_likelihood(data, theta, beta):
+def neg_log_likelihood(sparse_matrix, theta, beta):
     """ Compute the negative log-likelihood.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -24,14 +24,21 @@ def neg_log_likelihood(data, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    log_lklihood = 0.
+    zero_sparse_matrix = sparse_matrix.toarray()
+    zero_sparse_matrix[np.isnan(zero_sparse_matrix)] = 0
+    num_users, num_questions = np.shape(zero_sparse_matrix)
+    theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
+    beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
+
+    log_lklihood = theta_mat - beta_mat - np.log(1 + np.exp(theta_mat - beta_mat))
+    log_lklihood = np.sum(log_lklihood) # Only include positives, and sum instead of multiply (log)
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
     return -log_lklihood
 
 
-def update_theta_beta(data, lr, theta, beta):
+def update_theta_beta(sparse_matrix, lr, theta, beta):
     """ Update theta and beta using gradient descent.
 
     You are using alternating gradient descent. Your update should look:
@@ -52,14 +59,27 @@ def update_theta_beta(data, lr, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    pass
+    num_users, num_questions = np.shape(sparse_matrix)
+
+    zero_sparse_matrix = sparse_matrix.toarray()
+    zero_sparse_matrix[np.isnan(zero_sparse_matrix)] = 0
+
+    theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
+    beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
+
+    theta_grad = np.sum(- 1 + beta_mat - sigmoid(theta_mat - beta_mat), 1)
+    theta = theta - (lr * theta_grad)
+
+    beta_grad = np.sum(- sigmoid(theta_mat - beta_mat) + 1 - theta_mat, 0)
+    beta = beta - (lr * beta_grad)
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
     return theta, beta
 
 
-def irt(data, val_data, lr, iterations):
+def irt(sparse_matrix, val_data, lr, iterations):
     """ Train IRT model.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -73,17 +93,19 @@ def irt(data, val_data, lr, iterations):
     :return: (theta, beta, val_acc_lst)
     """
     # TODO: Initialize theta and beta.
-    theta = None
-    beta = None
+    num_users, num_questions = np.shape(sparse_matrix)
+    rng = np.random.default_rng()
+    theta = np.asarray(rng.uniform(0.01, 5, num_users)) # Size is of number of users based on ID.
+    beta = np.asarray(rng.uniform(0.01, 5, num_questions)) # Size is of number of questions based on question ID.
 
     val_acc_lst = []
 
     for i in range(iterations):
-        neg_lld = neg_log_likelihood(data, theta=theta, beta=beta)
+        neg_lld = neg_log_likelihood(sparse_matrix, theta=theta, beta=beta)
         score = evaluate(data=val_data, theta=theta, beta=beta)
         val_acc_lst.append(score)
         print("NLLK: {} \t Score: {}".format(neg_lld, score))
-        theta, beta = update_theta_beta(data, lr, theta, beta)
+        theta, beta = update_theta_beta(sparse_matrix, lr, theta, beta)
 
     # TODO: You may change the return values to achieve what you want.
     return theta, beta, val_acc_lst
@@ -107,20 +129,28 @@ def evaluate(data, theta, beta):
     return np.sum((data["is_correct"] == np.array(pred))) \
            / len(data["is_correct"])
 
-
 def main():
-    train_data = load_train_csv("../data")
+    train_data = load_train_csv("./data")
     # You may optionally use the sparse matrix.
-    sparse_matrix = load_train_sparse("../data")
-    val_data = load_valid_csv("../data")
-    test_data = load_public_test_csv("../data")
+    sparse_matrix = load_train_sparse("./data")
+    val_data = load_valid_csv("./data")
+    test_data = load_public_test_csv("./data")
 
     #####################################################################
     # TODO:                                                             #
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    pass
+    iteration_sets = [25, 50, 100, 200]
+    lrs = [0.001, 0.01, 0.05]
+
+    for iterations in iteration_sets:
+        for lr in lrs:
+            print("Training with lr of {} and {} number of iterations.".format(lr, iterations))
+            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations)
+            acc = evaluate(test_data, theta, beta)
+            print("Final accuracy: {}".format(acc))
+
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
