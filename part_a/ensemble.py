@@ -50,43 +50,30 @@ def prune_users(keep_users, data_set):
             del data_set["question_id"][check_ind]
             del data_set["is_correct"][check_ind]
 
-def sample_sparse_matrix(n, sparse_matrix, user_weights = [], guarantee_users = True, guarantee_questions = True):
-    num_users, num_questions = np.shape(sparse_matrix)
-    coords = np.argwhere(sparse_matrix.toarray() >= 0)
+def sample_sparse_matrix(n, sparse_matrix, user_weights = [], guarantee_users = True):
+    sparse_mat_shape = np.shape(sparse_matrix)
+    num_users, num_questions = sparse_mat_shape
+    composite = np.empty(sparse_mat_shape)
+    composite[:] = np.nan
+    sparse_matrix = sparse_matrix.toarray()
 
-    selected = []
-    if user_weights is []:
-        if not user_weights is []:
-            selected_users = np.random.choice(num_users, n, p=user_weights,replace=True)
-            for u_id in selected_users:
-                user_row = sparse_matrix[u_id]
-                q_id = np.random.choice(np.argwhere(user_row.toarray() >= 0)[:, 1])
-                selected.append([u_id, q_id])
-                selected = np.asarray(coords)
-    else:
-        selected = np.asarray(coords[np.random.choice(coords.shape[0], n)])
-    
-    res_mat = np.empty(np.shape(sparse_matrix))
-    res_mat[:] = np.nan
-    np.put(res_mat, selected, 1)
+    if len(user_weights) == 0:
+        user_weights = np.full(num_users, 1/num_users)
 
     if guarantee_users:
-        guaranteed_coords = []
-        for u_id in range(np.shape(sparse_matrix)[0]):
-            user_row = sparse_matrix[u_id]
-            q_id = np.random.choice(np.argwhere(user_row.toarray() >= 0)[:, 1])
-            guaranteed_coords.append([u_id, q_id])
-        np.put(res_mat, np.asarray(guaranteed_coords), 1)
+        composite = sparse_matrix
     
-    if guarantee_questions:
-        guaranteed_coords = []
-        for q_id in range(np.shape(sparse_matrix)[1]):
-            question_col = sparse_matrix[:, q_id]
-            u_id = np.random.choice(np.argwhere(question_col.toarray() >= 0)[:, 0])
-            guaranteed_coords.append([u_id, q_id])
-        np.put(res_mat, np.asarray(guaranteed_coords), 1)
+    selected = np.random.choice(num_users, n, replace=True, p=user_weights)
+    primed = set()
+    for user in selected:
+        row = np.expand_dims(sparse_matrix[user], 0)
+        if user in primed:
+            composite = np.concatenate((composite, row))
+        else:
+            primed.add(user)
+            composite[user] = row
 
-    return sparse.csr_matrix(res_mat) # No reason other than to maintain standard.
+    return sparse.csr_matrix(composite) # No reason other than to maintain standard.
 
 def matrix_to_dict(sparse_matrix):
     sampled_data = {
@@ -117,7 +104,7 @@ def evaluate_ensemble(n = 300):
     irt_model = irt.irt(sample_sparse_matrix(300, sparse_matrix), val_data, 0.001, 180)
 
     # Train NN
-    sub_sparse_matrix = sample_sparse_matrix(n, sparse_matrix, guarantee_users=False, guarantee_questions=False)
+    sub_sparse_matrix = sample_sparse_matrix(n, sparse_matrix, guarantee_users=False)
     sub_zero_matrix = sub_sparse_matrix.toarray().copy()
     sub_zero_matrix[np.isnan(sub_zero_matrix)] = 0
     nn_model = nn.AutoEncoder(num_questions, 5)
@@ -169,5 +156,13 @@ def evaluate_ensemble(n = 300):
 def main():
     evaluate_ensemble()
 
+def test():
+    sparse_matrix = utils.load_train_sparse("data")
+    users = np.shape(sparse_matrix)[0]
+    weight = np.full(users, 1/users)
+    sample_sparse_matrix(200, sparse_matrix, user_weights=weight)
+
 if __name__ == "__main__":
     main()
+
+    # test()
