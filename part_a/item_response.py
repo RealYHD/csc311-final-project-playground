@@ -25,14 +25,14 @@ def neg_log_likelihood(sparse_matrix, theta, beta):
     # TODO:                                                             #
     # Implement the function as described in the docstring.             #
     #####################################################################
-    zero_sparse_matrix = sparse_matrix.toarray()
-    zero_sparse_matrix[np.isnan(zero_sparse_matrix)] = 0
-    num_users, num_questions = np.shape(zero_sparse_matrix)
+    sparse_matrix = sparse_matrix.toarray()
+
+    num_users, num_questions = np.shape(sparse_matrix)
     theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
     beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
 
-    log_lklihood = zero_sparse_matrix * (theta_mat - beta_mat - np.logaddexp(0, theta_mat - beta_mat))\
-        - (1-zero_sparse_matrix) * (np.logaddexp(0, theta_mat - beta_mat))
+    log_lklihood = sparse_matrix * np.log(sigmoid(theta_mat - beta_mat)) + (1-sparse_matrix) * (1 - sigmoid(theta_mat - beta_mat))
+    log_lklihood[np.isnan(log_lklihood)] = 0
     log_lklihood = np.sum(log_lklihood) # Only include positives, and sum instead of multiply (log)
     #####################################################################
     #                       END OF YOUR CODE                            #
@@ -186,13 +186,13 @@ def main():
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    iteration_sets = [25, 50, 100, 200]
-    lrs = [0.001, 0.01]
+    iteration_sets = [20, 50, 100, 200]
+    lrs = [0.009, 0.01]
 
     for iterations in iteration_sets:
         for lr in lrs:
             print("Training with lr of {} and {} number of iterations.".format(lr, iterations))
-            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations)
+            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations, verbosity=2)
             acc = evaluate(test_data, theta, beta)
             print("Final accuracy: {}".format(acc))
 
