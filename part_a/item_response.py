@@ -40,7 +40,7 @@ def neg_log_likelihood(sparse_matrix, theta, beta):
     return -log_lklihood
 
 
-def update_theta_beta_vec(sparse_matrix, lr, theta, beta):
+def update_theta_beta(sparse_matrix, lr, theta, beta):
     """ Update theta and beta using gradient descent.
 
     You are using alternating gradient descent. Your update should look:
@@ -85,45 +85,7 @@ def update_theta_beta_vec(sparse_matrix, lr, theta, beta):
     #####################################################################
     return theta, beta
 
-def update_theta_beta(sparse_matrix, lr, theta, beta):
-    """ Update theta and beta using gradient descent.
-
-    You are using alternating gradient descent. Your update should look:
-    for i in iterations ...
-        theta <- new_theta
-        beta <- new_beta
-
-    You may optionally replace the function arguments to receive a matrix.
-
-    :param data: A dictionary {user_id: list, question_id: list,
-    is_correct: list}
-    :param lr: float
-    :param theta: Vector
-    :param beta: Vector
-    :return: tuple of vectors
-    """
-    #####################################################################
-    # TODO:                                                             #
-    # Implement the function as described in the docstring.             #
-    #####################################################################
-    num_users, num_questions = np.shape(sparse_matrix)
-
-    zero_sparse_matrix = sparse_matrix.toarray()
-    zero_sparse_matrix[np.isnan(zero_sparse_matrix)] = 0
-
-    for i in range(len(theta)):
-        theta[i] = theta[i] - lr * np.sum(- (1 - sigmoid(theta[i] - beta)))
-    
-    for i in range(len(beta)):
-        beta[i] = beta[i] - lr * np.sum(- (theta - beta[i]))
-
-    #####################################################################
-    #                       END OF YOUR CODE                            #
-    #####################################################################
-    return theta, beta
-
-
-def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta_vec, verbosity = 1):
+def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta, verbosity = 1):
     """ Train IRT model.
 
     You may optionally replace the function arguments to receive a matrix.
