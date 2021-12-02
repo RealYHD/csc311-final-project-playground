@@ -50,9 +50,22 @@ def prune_users(keep_users, data_set):
             del data_set["question_id"][check_ind]
             del data_set["is_correct"][check_ind]
 
-def sample_sparse_matrix(n, sparse_matrix, guarantee_users = True, guarantee_questions = True):
+def sample_sparse_matrix(n, sparse_matrix, user_weights = [], guarantee_users = True, guarantee_questions = True):
+    num_users, num_questions = np.shape(sparse_matrix)
     coords = np.argwhere(sparse_matrix.toarray() >= 0)
-    selected = np.asarray(coords[np.random.choice(coords.shape[0], n)])
+
+    selected = []
+    if user_weights is []:
+        if not user_weights is []:
+            selected_users = np.random.choice(num_users, n, p=user_weights,replace=True)
+            for u_id in selected_users:
+                user_row = sparse_matrix[u_id]
+                q_id = np.random.choice(np.argwhere(user_row.toarray() >= 0)[:, 1])
+                selected.append([u_id, q_id])
+                selected = np.asarray(coords)
+    else:
+        selected = np.asarray(coords[np.random.choice(coords.shape[0], n)])
+    
     res_mat = np.empty(np.shape(sparse_matrix))
     res_mat[:] = np.nan
     np.put(res_mat, selected, 1)
@@ -104,7 +117,7 @@ def evaluate_ensemble(n = 300):
     irt_model = irt.irt(sample_sparse_matrix(300, sparse_matrix), val_data, 0.001, 180)
 
     # Train NN
-    sub_sparse_matrix = sample_sparse_matrix(n, sparse_matrix, False, False)
+    sub_sparse_matrix = sample_sparse_matrix(n, sparse_matrix, guarantee_users=False, guarantee_questions=False)
     sub_zero_matrix = sub_sparse_matrix.toarray().copy()
     sub_zero_matrix[np.isnan(sub_zero_matrix)] = 0
     nn_model = nn.AutoEncoder(num_questions, 5)
