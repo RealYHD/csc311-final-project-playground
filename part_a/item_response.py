@@ -111,9 +111,9 @@ def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta, 
         score = evaluate(data=val_data, theta=theta, beta=beta)
         val_acc_lst.append(score)
         if verbosity == 2:
-            print("NLLK: {} \t Score: {}".format(neg_lld, score))
+            print("It.: {} NLLK: {} \t Score: {}".format(i, neg_lld, score))
         elif verbosity == 1:
-            sys.stdout.write("\rNLLK: {} \t Score: {}".format(neg_lld, score))
+            sys.stdout.write("\rIt.: {} \t NLLK: {} \t Score: {}".format(i, neg_lld, score))
         theta, beta = step_func(sparse_matrix, lr, theta, beta)
     if verbosity == 1:
         print()
@@ -153,16 +153,23 @@ def main():
     # Tune learning rate and number of iterations. With the implemented #
     # code, report the validation and test accuracy.                    #
     #####################################################################
-    iteration_sets = [20, 50, 100, 200]
-    lrs = [0.001, 0.005, 0.01]
+    iteration_sets = [45, 180, 185, 190]
+    lrs = [0.001, 0.005]
 
+    lr_star = None
+    iterations_star = None
+    acc_star = 0
     for iterations in iteration_sets:
         for lr in lrs:
             print("Training with lr of {} and {} number of iterations.".format(lr, iterations))
-            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations, verbosity=1)
-            acc = evaluate(test_data, theta, beta)
+            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations, verbosity=2)
+            acc = evaluate(val_data, theta, beta)
             print("Final accuracy: {}".format(acc))
-
+            if acc > acc_star:
+                acc_star = acc
+                lr_star = lr
+                iterations_star = iterations
+    print("lr*: {} iterations*: {} acc*: {}".format(lr_star, iterations_star, acc_star))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################

@@ -128,9 +128,8 @@ def train(model, lr, lamb, train_data, zero_train_data, num_epoch, valid_data = 
                 print("{}/{}\t{:.6f}\t{}".format((epoch + 1), num_epoch, train_loss, valid_acc))
             elif verbosity == 1:
                 sys.stdout.write("\rEpoch: {}/{}, Loss: {:.6f}, Valid acc.: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
-    if not verbosity:
-        print("Final training results:")
-        print("\rEpoch: {}/{}, Loss: {:.6f}, Valid acc.: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
+    print("\nFinal training results:")
+    print("\rEpoch: {}/{}, Loss: {:.6f}, Valid acc.: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -171,10 +170,10 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    ks = [5, 50, 100, 200, 500]
-    lrs = [0.001, 0.05, 0.075]
-    num_epochs = [160, 80, 40, 20]
-    lambs = [0, 0.0001, 0.00025, 0.0005]
+    ks = [3, 5, 7]
+    lrs = [0.025, 0.05, 0.075]
+    num_epochs = [20, 40, 60]
+    lambs = [0.0001, 0.00025, 0.0005]
     model = None
 
     u, q = train_matrix.shape
@@ -192,7 +191,7 @@ def main():
                     print("\tk\tLearn. Rate\t# of Epochs\tLambda")
                     print("\t{}\t{}\t{}\t{}".format(k, lr, num_epoch, lamb))
                     model = AutoEncoder(q, k)
-                    train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
+                    train(model, lr, lamb, train_matrix, zero_train_matrix, num_epoch, valid_data, verbosity=2)
                     acc = evaluate(model, zero_train_matrix, valid_data)
                     if acc > acc_star:
                         print("\tFinal accuracy*\t{}".format(acc))
@@ -210,7 +209,6 @@ def main():
         print("\tLearning rate*:\t{}".format(lr_star))
         print("\tNumber of epochs*:\t{}".format(num_epoch_star))
         print("\tLambda*:\t{}".format(lamb_star))
-        print()
 
 
     #####################################################################
