@@ -180,7 +180,7 @@ def main():
     # code, report the validation and test accuracy.                    #
     #####################################################################
     iteration_sets = [25, 50, 100, 200]
-    lrs = [0.001, 0.01, 0.05]
+    lrs = [0.001, 0.01]
 
     for iterations in iteration_sets:
         for lr in lrs:
