@@ -124,17 +124,17 @@ def evaluate_ensemble(n = 300):
         answer_correct = val_data["is_correct"][i]
         
         # Eval IRT
-        irt_prediction = predict_irt(u_id, q_id, irt_model[0], irt_model[1], binary=False)
+        irt_prediction = predict_irt(u_id, q_id, irt_model[0], irt_model[1], binary=True)
         if (irt_prediction >= 0.5) == answer_correct:
             ind_correct["irt"] = 1 + ind_correct["irt"]
 
         # Eval NN
-        nn_prediction = predict_nn(u_id, q_id, torch.FloatTensor(zero_sparse_matrix), nn_model, binary=False)
+        nn_prediction = predict_nn(u_id, q_id, torch.FloatTensor(zero_sparse_matrix), nn_model, binary=True)
         if (nn_prediction >= 0.5) == answer_correct:
             ind_correct["nn"] = 1 + ind_correct["nn"]
 
         # Eval kNN
-        knn_prediction = predict_knn_by_user(u_id, q_id, knn_sub_sparse_mat, 15, binary=False) # TODO: By item may have slightly higher accuracy.
+        knn_prediction = predict_knn_by_user(u_id, q_id, knn_sub_sparse_mat, 15, binary=True) # TODO: By item may have slightly higher accuracy.
         if (knn_prediction >= 0.5) == answer_correct:
             ind_correct["knn"] = 1 + ind_correct["knn"]
 
