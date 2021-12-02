@@ -64,16 +64,21 @@ def update_theta_beta_vec(sparse_matrix, lr, theta, beta):
     num_users, num_questions = np.shape(sparse_matrix)
 
     c_mat = sparse_matrix.toarray()
-    c_mat[np.isnan(c_mat)] = 0
 
     theta_mat = np.tile(np.expand_dims(theta, 1), (1, num_questions))
     beta_mat = np.tile(np.expand_dims(beta, 0), (num_users, 1))
 
-    theta_grad = np.sum(c_mat - sigmoid(theta_mat - beta_mat), 1)
-    theta = theta - (lr * theta_grad)
+    theta_grad = c_mat - sigmoid(theta_mat - beta_mat)
+    theta_grad = -theta_grad # negative log likelihood
+    theta_grad[np.isnan(theta_grad)] = 0
+    theta_grad_collapsed = np.sum(theta_grad, 1)
+    theta = theta - (lr * theta_grad_collapsed)
 
-    beta_grad = np.sum(-c_mat + sigmoid(theta_mat - beta_mat), 0)
-    beta = beta - (lr * beta_grad)
+    beta_grad = -c_mat + sigmoid(theta_mat - beta_mat)
+    beta_grad = -beta_grad # negative log likelihood
+    beta_grad[np.isnan(beta_grad)]  = 0
+    beta_grad_collapsed = np.sum(beta_grad, 0)
+    beta = beta - (lr * beta_grad_collapsed)
 
     #####################################################################
     #                       END OF YOUR CODE                            #
@@ -187,12 +192,12 @@ def main():
     # code, report the validation and test accuracy.                    #
     #####################################################################
     iteration_sets = [20, 50, 100, 200]
-    lrs = [0.009, 0.01]
+    lrs = [0.001, 0.005, 0.01]
 
     for iterations in iteration_sets:
         for lr in lrs:
             print("Training with lr of {} and {} number of iterations.".format(lr, iterations))
-            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations, verbosity=2)
+            theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations, verbosity=1)
             acc = evaluate(test_data, theta, beta)
             print("Final accuracy: {}".format(acc))
 
