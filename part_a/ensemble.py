@@ -9,22 +9,31 @@ import utils
 import neural_network as nn
 import scipy.sparse
 
-def predict_irt(u_id, q_id, theta, beta):
+def predict_irt(u_id, q_id, theta, beta, binary = True):
     """ Makes a prediction of whether or not u_id will answer
     q_id correctly given theta and beta.
     """
-    return irt.sigmoid(theta[u_id] - beta[q_id])
+    pred = irt.sigmoid(theta[u_id] - beta[q_id])
+    if binary:
+        return pred >= 0.5
+    return pred
 
-def predict_knn_by_user(u_id, q_id, matrix, k):
+def predict_knn_by_user(u_id, q_id, matrix, k, binary = True):
     nbrs = KNNImputer(n_neighbors=k)
     mat = nbrs.fit_transform(matrix.toarray())
-    return mat[u_id, q_id]
+    pred = mat[u_id, q_id]
+    if binary:
+        return pred >= 0.5
+    return pred
 
-def predict_nn(u_id, q_id, zero_data_matrix, model):
+def predict_nn(u_id, q_id, zero_data_matrix, model, binary = True):
     model.eval()
     inputs = Variable(zero_data_matrix[u_id]).unsqueeze(0)
     outputs = model(inputs)
-    return outputs[0][q_id]
+    pred = outputs[0][q_id]
+    if binary:
+        return pred >= 0.5
+    return pred
 
 def prune_users(keep_users, data_set):
     user_set = set()
@@ -80,7 +89,7 @@ def matrix_to_dict(sparse_matrix):
         sampled_data["is_correct"].append(is_correct)
     return sampled_data
 
-def evaluate_ensemble(n = 200):
+def evaluate_ensemble(n = 300):
     train_data = utils.load_train_csv("data")
     sparse_matrix = utils.load_train_sparse("data")
     zero_sparse_matrix = sparse_matrix.toarray().copy()
@@ -98,7 +107,7 @@ def evaluate_ensemble(n = 200):
     sub_zero_matrix = sub_sparse_matrix.toarray().copy()
     sub_zero_matrix[np.isnan(sub_zero_matrix)] = 0
     nn_model = nn.AutoEncoder(num_questions, 5)
-    nn.train(nn_model, 0.05, 0.00025, torch.FloatTensor(sub_sparse_matrix.toarray()), torch.FloatTensor(sub_zero_matrix), 40, val_data, verbosity_mode=1)
+    nn.train(nn_model, 0.05, 0.00025, torch.FloatTensor(sub_sparse_matrix.toarray()), torch.FloatTensor(sub_zero_matrix), 40, val_data, verbosity=1)
 
     # Get matrix for kNN
     knn_sub_sparse_mat = sample_sparse_matrix(n, sparse_matrix)
@@ -115,17 +124,17 @@ def evaluate_ensemble(n = 200):
         answer_correct = val_data["is_correct"][i]
         
         # Eval IRT
-        irt_prediction = predict_irt(u_id, q_id, irt_model[0], irt_model[1])
+        irt_prediction = predict_irt(u_id, q_id, irt_model[0], irt_model[1], binary=False)
         if (irt_prediction >= 0.5) == answer_correct:
             ind_correct["irt"] = 1 + ind_correct["irt"]
 
         # Eval NN
-        nn_prediction = predict_nn(u_id, q_id, torch.FloatTensor(zero_sparse_matrix), nn_model)
+        nn_prediction = predict_nn(u_id, q_id, torch.FloatTensor(zero_sparse_matrix), nn_model, binary=False)
         if (nn_prediction >= 0.5) == answer_correct:
             ind_correct["nn"] = 1 + ind_correct["nn"]
 
         # Eval kNN
-        knn_prediction = predict_knn_by_user(u_id, q_id, knn_sub_sparse_mat, 11) # TODO: By item may have slightly higher accuracy.
+        knn_prediction = predict_knn_by_user(u_id, q_id, knn_sub_sparse_mat, 15, binary=False) # TODO: By item may have slightly higher accuracy.
         if (knn_prediction >= 0.5) == answer_correct:
             ind_correct["knn"] = 1 + ind_correct["knn"]
 

@@ -1,3 +1,4 @@
+import sys
 from utils import *
 
 import numpy as np
@@ -117,7 +118,7 @@ def update_theta_beta(sparse_matrix, lr, theta, beta):
     return theta, beta
 
 
-def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta_vec):
+def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta_vec, verbosity = 1):
     """ Train IRT model.
 
     You may optionally replace the function arguments to receive a matrix.
@@ -142,8 +143,14 @@ def irt(sparse_matrix, val_data, lr, iterations, step_func = update_theta_beta_v
         neg_lld = neg_log_likelihood(sparse_matrix, theta=theta, beta=beta)
         score = evaluate(data=val_data, theta=theta, beta=beta)
         val_acc_lst.append(score)
-        print("NLLK: {} \t Score: {}".format(neg_lld, score))
+        if verbosity == 2:
+            print("NLLK: {} \t Score: {}".format(neg_lld, score))
+        elif verbosity == 1:
+            sys.stdout.write("\rNLLK: {} \t Score: {}".format(neg_lld, score))
         theta, beta = step_func(sparse_matrix, lr, theta, beta)
+    if verbosity == 1:
+        print()
+    print("Final results: NLLK: {} \t Score: {}".format(neg_lld, score))
 
     # TODO: You may change the return values to achieve what you want.
     return theta, beta, val_acc_lst

@@ -81,7 +81,7 @@ class AutoEncoder(nn.Module):
         return out
 
 
-def train(model, lr, lamb, train_data, zero_train_data, num_epoch, valid_data = None, verbosity_mode = 1):
+def train(model, lr, lamb, train_data, zero_train_data, num_epoch, valid_data = None, verbosity = 1):
     """ Train the neural network, where the objective also includes
     a regularizer.
 
@@ -103,8 +103,6 @@ def train(model, lr, lamb, train_data, zero_train_data, num_epoch, valid_data = 
     optimizer = optim.SGD(model.parameters(), lr=lr, weight_decay=lamb)
     num_student = train_data.shape[0]
 
-    if verbosity_mode and valid_data:
-        print("\tEpoch\tTrain. cost\tValid. acc.")
     for epoch in range(0, num_epoch):
         train_loss = 0.
 
@@ -126,12 +124,13 @@ def train(model, lr, lamb, train_data, zero_train_data, num_epoch, valid_data = 
             optimizer.step()
         if not valid_data == None:                
             valid_acc = evaluate(model, zero_train_data, valid_data)
-            if verbosity_mode == 2:
+            if verbosity == 2:
                 print("{}/{}\t{:.6f}\t{}".format((epoch + 1), num_epoch, train_loss, valid_acc))
-            elif verbosity_mode == 1:
+            elif verbosity == 1:
                 sys.stdout.write("\rEpoch: {}/{}, Loss: {:.6f}, Valid acc.: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
-    if not verbosity_mode:
-        print()
+    if not verbosity:
+        print("Final training results:")
+        print("\rEpoch: {}/{}, Loss: {:.6f}, Valid acc.: {}".format((epoch + 1), num_epoch, train_loss, valid_acc))
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
