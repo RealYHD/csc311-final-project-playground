@@ -3,11 +3,44 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{bm}
+\usepackage{bbm}
 
 \renewcommand\thesubsection{\alph{subsection}}
 
 \title{CSC311 - Final Assignment}
 \author{Zelong Liu, Fizzah Mansoor, Harrison Deng}
+
+\begin{pycode}
+    ### Setting up PythonTex environment. ###
+
+    # Add code dependencies to working directory #
+    # TODO: Finish this part
+
+    # Setting up automatic graphic inclusion #
+    fig_info = {
+        "dir": "figures/generated/",
+        "basename": '_'.join([pytex.session, pytex.family, pytex.restart]),
+        "num": 0
+    }
+    pytex.figures = fig_info
+
+    def after_figures():
+        if pytex.family == "pylab":
+                figures = pytex.figures
+                for num in get_fignums():
+                    path = figures["basename"] + "_fig" + str(figures["num"]) + ".pdf"
+                    figures["num"] = figures["num"] + 1
+                    figure(figures["num"])
+                    savefig(path)
+                    pytex.add_created(path)
+                    print(r"\includegraphics{" + path + r"}")
+
+    # Define code to run after running python code
+    def after():
+        after_figures()
+    pytex.after = after
+
+\end{pycode}
 
 \begin{document}
     \maketitle
@@ -31,7 +64,55 @@
 
     \section{Item Response Theory}
     \subsection{Mathematical Derivations for IRT}
+    We are given that $p(c_{ij} = 1 \vert \bm{\theta}, \bm{\beta})$. We will assume $c_{ij}$ is a value in $\bm{C}$ where $i$ and $j$ as coordinates are in set $O$ as defined:
+    \[ O = \{(i,j): \text{Entry $(i,j)$ of matrix $\bm{C}$ and is observed}\} \].
+
+    Since this $c_{ij}$ is a binary value, we can describe $P(\bm{C} \vert \bm{\theta}, \bm{\beta})$ with a bernoulli distribution:
+    \[p(C \vert \bm{\theta}, \bm{\beta}) = \prod_{ij}[\frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}]^{c_{ij}}[\frac{1}{1 + exp(\theta_{i} - \beta_{j})}]^{(1-c_{ij})}\]
+
+    Therefore, our Likelihood function is:
+    \[L(\bm{\theta}, \bm{\beta}) =\prod_{ij}[\frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}]^{c_{ij}}[\frac{1}{1 + exp(\theta_{i} - \beta_{j})}]^{(1-c_{ij})}\]
+
+    Then, apply log to obtain the log-likelihood where $N$ and $M$ are the number of users and questions respectively:
+    \begin{align*}
+        L(\bm{\theta}, \bm{\beta}) &=\prod_{ij}[\frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}]^{c_{ij}}[\frac{1}{1 + exp(\theta_{i} - \beta_{j})}]^{(1-c_{ij})} \\
+        log(L(\bm{\theta}, \bm{\beta})) &= \log(\prod_{ij}[\frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}^{c_{ij}}][\frac{1}{1 + exp(\theta_{i} - \beta_{j})}^{1-c_{ij}}] \\
+        &=\sum_{i=1}^{N} \sum_{j=1}^{M} \log([\frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}^{c_{ij}}][\frac{1}{1 + exp(\theta_{i} - \beta_{j})}^{1-c_{ij}}]) \\
+        &=\sum_{i=1}^{N} \sum_{j=1}^{M} c_{ij}((log(exp(\theta_{i} - \beta_{j})) - log(1 + exp(\theta_{i} - \beta_{j}))) \\
+        &+ (1 - c_{ij})(\log(1) - \log(1 + exp(\theta_{i} - \beta_{j}))) \\
+        &=\sum_{i=1}^{N} \sum_{j=1}^{M} [c_{ij}(\theta_{i} - \beta_{j}) - \log(\frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})})] \\
+    \end{align*}
+
+    Then, we solve for the partial derivative with respect to $\theta_i$ and $\beta_j$ respectively:
+    \begin{align*}
+        \frac{\delta}{\delta\theta_{i}} &=  \sum_{j=1}^{M}{[c_{ij} - \frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}]} \\
+        \frac{\delta}{\delta\beta_{j}} &= \sum_{i=1}^{N}{[-c_{ij} + \frac{exp(\theta_{i} - \beta_{j})}{1+exp(\theta_{i} - \beta_{j})}]}
+    \end{align*}
+    
     \subsection{Implementation of IRT}
+    The implementation of IRT is in \verb|part_a/item_response.py|. We chose the hyperparameters $\alpha$ and iterations via the code below:
+
+    \begin{pyblock}[IRT]
+        #TODO: Import 
+        iteration_sets = [45, 180, 185, 190]
+        lrs = [0.001, 0.005]
+
+        lr_star = None
+        iterations_star = None
+        acc_star = 0
+        for iterations in iteration_sets:
+            for lr in lrs:
+                print("Training with lr of {} and {} number of iterations.".format(lr, iterations))
+                theta, beta, step_accs = irt(sparse_matrix, val_data, lr, iterations, verbosity=2)
+                acc = evaluate(val_data, theta, beta)
+                print("Final accuracy: {}".format(acc))
+                if acc > acc_star:
+                    acc_star = acc
+                    lr_star = lr
+                    iterations_star = iterations
+        print("lr*: {} iterations*: {} acc*: {}".format(lr_star, iterations_star, acc_star))
+    \end{pyblock}
+
     \subsection{Reporting Validation and Test Accuracies}
     \subsection{Plots of Questions With Respect to $\bm{\theta}$ and $\bm{\beta}$}
 
