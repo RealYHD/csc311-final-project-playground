@@ -50,11 +50,10 @@ def prune_users(keep_users, data_set):
             del data_set["question_id"][check_ind]
             del data_set["is_correct"][check_ind]
 
-def sample_sparse_matrix(n, sparse_matrix, user_weights = [], guarantee_users = True):
+def sample_sparse_matrix(n, sparse_matrix, user_weights = [], guarantee_users = True, only_insert = False):
     sparse_mat_shape = np.shape(sparse_matrix)
     num_users, num_questions = sparse_mat_shape
     composite = np.empty(sparse_mat_shape)
-    composite[:] = np.nan
     sparse_matrix = sparse_matrix.toarray()
 
     if len(user_weights) == 0:
@@ -62,16 +61,18 @@ def sample_sparse_matrix(n, sparse_matrix, user_weights = [], guarantee_users = 
 
     if guarantee_users:
         composite = sparse_matrix
-    
+    else:
+        composite[:] = np.nan
+
     selected = np.random.choice(num_users, n, replace=True, p=user_weights)
     primed = set()
     for user in selected:
         row = np.expand_dims(sparse_matrix[user], 0)
-        if user in primed:
-            composite = np.concatenate((composite, row))
-        else:
+        if not user in primed and not (only_insert and guarantee_users):
             primed.add(user)
             composite[user] = row
+        else:
+            composite = np.concatenate((composite, row))
 
     return sparse.csr_matrix(composite) # No reason other than to maintain standard.
 
@@ -101,7 +102,7 @@ def evaluate_ensemble(n = 300):
     num_users, num_questions = np.shape(sparse_matrix)
 
     # Train IRT
-    irt_model = irt.irt(sample_sparse_matrix(300, sparse_matrix), val_data, 0.001, 180)
+    irt_model = irt.irt(sample_sparse_matrix(n, sparse_matrix), val_data, 0.001, 180)
 
     # Train NN
     sub_sparse_matrix = sample_sparse_matrix(n, sparse_matrix, guarantee_users=False)
