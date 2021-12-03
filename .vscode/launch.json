@@ -10,23 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "Python: NN",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/part_a/neural_network.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "Python: NN-hypervalidator",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/part_a/hypervalidator.py",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${relativeFileDirname}"
         }
     ]
 }
